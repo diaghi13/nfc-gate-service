@@ -1,0 +1,37 @@
+[Unit]
+Description=Sistema Controllo Tornello
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=turnstile
+Group=gpio
+WorkingDirectory=/home/turnstile/app
+Environment=PYTHONPATH=/home/turnstile/app
+ExecStart=/home/turnstile/venv/bin/python /home/turnstile/app/main.py
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+
+# Gestione riavvii automatici
+ExecStartPre=/home/turnstile/app/scripts/check_restart.sh
+
+# Limiti di risorse
+MemoryLimit=256M
+CPUQuota=50%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=turnstile
+
+# Sicurezza
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/home/turnstile
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

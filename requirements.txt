@@ -1,0 +1,17 @@
+# Dipendenze per sistema tornello Raspberry Pi
+
+# GPIO e Hardware
+RPi.GPIO==0.7.1
+mfrc522==0.0.7
+spidev==3.5
+
+# Async HTTP e WebSocket
+aiohttp==3.8.6
+aiofiles==23.2.1
+websockets==12.0
+
+# Configurazione
+python-dotenv==1.0.0
+
+# Utilities
+asyncio-mqtt==0.16.1
