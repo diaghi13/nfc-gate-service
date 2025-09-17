@@ -100,59 +100,6 @@ if [ -f "$SOURCE_DIR/main.py" ] || [ -f "$SOURCE_DIR/src/config.py" ]; then
     log_info "File copiati"
 else
     log_warn "File sorgente non trovati, creazione struttura minima..."
-    # Crea file base necessari
-    create_base_files
-fi
-
-# Step 8: File configurazione
-log_step "8/10 Configurazione .env..."
-create_env_file
-
-# Step 9: Script di sistema
-log_step "9/10 Script di sistema..."
-create_system_scripts
-
-# Step 10: Servizio systemd
-log_step "10/10 Configurazione servizio..."
-create_systemd_service
-
-# Installazione dipendenze Python
-log_info "Installazione dipendenze Python..."
-if [ -f "$TURNSTILE_HOME/app/requirements.txt" ]; then
-    sudo -u turnstile $TURNSTILE_HOME/venv/bin/pip install -r "$TURNSTILE_HOME/app/requirements.txt" -q
-else
-    sudo -u turnstile $TURNSTILE_HOME/venv/bin/pip install \
-        RPi.GPIO==0.7.1 mfrc522==0.0.7 spidev==3.5 \
-        aiohttp==3.8.6 aiofiles==23.2.1 websockets==12.0 \
-        python-dotenv==1.0.0 -q
-fi
-
-# Permessi finali
-log_info "Impostazione permessi finali..."
-chown -R turnstile:turnstile $TURNSTILE_HOME
-chmod +x "$TURNSTILE_HOME/app/main.py" 2>/dev/null || true
-chmod +x "$TURNSTILE_HOME/app/scripts"/*.sh 2>/dev/null || true
-
-# Abilitazione servizio
-systemctl daemon-reload
-systemctl enable turnstile.service
-
-log_info ""
-log_info "=== INSTALLAZIONE COMPLETATA CON SUCCESSO! ==="
-log_info ""
-log_info "PASSI SUCCESSIVI:"
-log_info "1. Modifica configurazione: nano /home/turnstile/app/.env"
-log_info "2. Riavvia per hardware: sudo reboot"
-log_info "3. Avvia servizio: sudo systemctl start turnstile"
-log_info "4. Controlla log: sudo journalctl -u turnstile -f"
-log_info "5. Test sistema: /home/turnstile/app/scripts/test_mode.sh status"
-log_info ""
-log_warn "RIAVVIO NECESSARIO per applicare configurazioni hardware!"
-
-exit 0
-
-# Funzioni helper
-create_base_files() {
     # Crea main.py base se non esiste
     if [ ! -f "$TURNSTILE_HOME/app/main.py" ]; then
         cat > "$TURNSTILE_HOME/app/main.py" << 'EOF'
@@ -233,11 +180,12 @@ python-dotenv==1.0.0
 EOF
     
     log_info "File base creati"
-}
+fi
 
-create_env_file() {
-    if [ ! -f "$TURNSTILE_HOME/app/.env" ]; then
-        cat > "$TURNSTILE_HOME/app/.env" << 'EOF'
+# Step 8: File configurazione
+log_step "8/10 Configurazione .env..."
+if [ ! -f "$TURNSTILE_HOME/app/.env" ]; then
+    cat > "$TURNSTILE_HOME/app/.env" << 'EOF'
 # Configurazione Sistema Tornello
 # IMPORTANTE: Modifica questi valori per la tua installazione
 
@@ -289,16 +237,16 @@ UPDATE_ENDPOINT=https://api.example.com/updates
 WHITELIST_FILE=/home/turnstile/data/whitelist.json
 OFFLINE_LOGS_FILE=/home/turnstile/data/offline_logs.json
 EOF
-        chown turnstile:turnstile "$TURNSTILE_HOME/app/.env"
-        log_info "File .env creato"
-    else
-        log_info "File .env già esistente"
-    fi
-}
+    chown turnstile:turnstile "$TURNSTILE_HOME/app/.env"
+    log_info "File .env creato"
+else
+    log_info "File .env già esistente"
+fi
 
-create_system_scripts() {
-    # Script check_restart.sh
-    cat > "$TURNSTILE_HOME/app/scripts/check_restart.sh" << 'EOF'
+# Step 9: Script di sistema
+log_step "9/10 Script di sistema..."
+# Script check_restart.sh
+cat > "$TURNSTILE_HOME/app/scripts/check_restart.sh" << 'EOF'
 #!/bin/bash
 RESTART_FILE="/home/turnstile/data/restart_required"
 LOG_FILE="/home/turnstile/logs/service.log"
@@ -319,9 +267,9 @@ fi
 
 exit 0
 EOF
-    
-    # Script test_mode.sh
-    cat > "$TURNSTILE_HOME/app/scripts/test_mode.sh" << 'EOF'
+
+# Script test_mode.sh
+cat > "$TURNSTILE_HOME/app/scripts/test_mode.sh" << 'EOF'
 #!/bin/bash
 ENV_FILE="/home/turnstile/app/.env"
 SERVICE_NAME="turnstile"
@@ -423,14 +371,14 @@ case "${1:-status}" in
         ;;
 esac
 EOF
-    
-    chmod +x "$TURNSTILE_HOME/app/scripts"/*.sh
-    chown -R turnstile:turnstile "$TURNSTILE_HOME/app/scripts"
-    log_info "Script di sistema creati"
-}
 
-create_systemd_service() {
-    cat > /etc/systemd/system/turnstile.service << 'EOF'
+chmod +x "$TURNSTILE_HOME/app/scripts"/*.sh
+chown -R turnstile:turnstile "$TURNSTILE_HOME/app/scripts"
+log_info "Script di sistema creati"
+
+# Step 10: Servizio systemd
+log_step "10/10 Configurazione servizio..."
+cat > /etc/systemd/system/turnstile.service << 'EOF'
 [Unit]
 Description=Sistema Controllo Tornello
 After=network.target
@@ -467,6 +415,40 @@ PrivateTmp=true
 [Install]
 WantedBy=multi-user.target
 EOF
-    
-    log_info "Servizio systemd configurato"
-}
+
+log_info "Servizio systemd configurato"
+
+# Installazione dipendenze Python
+log_info "Installazione dipendenze Python..."
+if [ -f "$TURNSTILE_HOME/app/requirements.txt" ]; then
+    sudo -u turnstile $TURNSTILE_HOME/venv/bin/pip install -r "$TURNSTILE_HOME/app/requirements.txt" -q
+else
+    sudo -u turnstile $TURNSTILE_HOME/venv/bin/pip install \
+        RPi.GPIO==0.7.1 mfrc522==0.0.7 spidev==3.5 \
+        aiohttp==3.8.6 aiofiles==23.2.1 websockets==12.0 \
+        python-dotenv==1.0.0 -q
+fi
+
+# Permessi finali
+log_info "Impostazione permessi finali..."
+chown -R turnstile:turnstile $TURNSTILE_HOME
+chmod +x "$TURNSTILE_HOME/app/main.py" 2>/dev/null || true
+chmod +x "$TURNSTILE_HOME/app/scripts"/*.sh 2>/dev/null || true
+
+# Abilitazione servizio
+systemctl daemon-reload
+systemctl enable turnstile.service
+
+log_info ""
+log_info "=== INSTALLAZIONE COMPLETATA CON SUCCESSO! ==="
+log_info ""
+log_info "PASSI SUCCESSIVI:"
+log_info "1. Modifica configurazione: nano /home/turnstile/app/.env"
+log_info "2. Riavvia per hardware: sudo reboot"
+log_info "3. Avvia servizio: sudo systemctl start turnstile"
+log_info "4. Controlla log: sudo journalctl -u turnstile -f"
+log_info "5. Test sistema: /home/turnstile/app/scripts/test_mode.sh status"
+log_info ""
+log_warn "RIAVVIO NECESSARIO per applicare configurazioni hardware!"
+
+exit 0
